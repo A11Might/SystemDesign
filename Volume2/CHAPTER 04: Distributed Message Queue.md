@@ -189,3 +189,79 @@
   - 服务发现：哪些代理是活跃的。
   - 领导人选举：选一个代理作为活动控制器。集群中只有一个活动控制器，负责分配分区。
   - 常用Apache ZooKeeper[2]或etcd[3]来选举控制器。
+
+## 第3步 - 深入设计
+
+为了满足高数据保留要求的同时实现高吞吐量，我们做出了三个重要的设计选择，现在我们详细解释一下。
+
+- 我们选择了一种磁盘上的数据结构，它利用旋转磁盘出色的顺序访问能力和现代操作系统积极的磁盘缓存策略。
+- 我们设计的消息数据结构，不需要修改消息，就可以让其从生产者传递到队列，最终传递到消费者。这最大限度地减少了复制需求，在高容量和高流量的系统中，复制是非常昂贵的。
+
+- 我们设计了有利于批处理的系统。小I/O会阻碍高吞吐。因此，只要有可能，我们的设计就使用批处理。生产者批量发送消息。消息队列批量持久化消息。在可能的情况下，消费者也批量获取消息。
+
+### 数据存储
+
+现在我们来更详细地探究持久化消息这块。为了找到最佳选择，我们来考虑下消息队列的流量模式。
+
+- 写密集型，读密集型。
+- 没有更新或删除操作。顺便一提，传统的消息队列除非消息落后，否则不会持久化消息。在消息落后的情况下，当队列追上时会有删除操作。我们这里讨论的是数据流平台的持久化。
+- 主要是顺序读/写。
+
+选择1：数据库
+
+第一个选择是使用数据库。
+
+- 关系性数据库：创建一个主题表，并将消息以行的形式写入表。
+- NoSQL数据：创建一个集合作为主题，并将消息以文档形式写入。
+
+
+
+
+
+
+
+
+
+
+
+## 参考资料
+
+[1] Queue Length Limit. https://www.rabbitmq.com/docs/maxlength
+
+[2] Apache ZooKeeper Wikipedia. https://en.wikipedia.org/wiki/Apache_ZooKeeper
+
+[3] etcd. https://etcd.io
+
+[4] MySQL. https://www.mysql.com
+
+[5] Comparison of disk and memory performance.
+
+[6] Push vs pull. https://kafka.apache.org/documentation/#design_pull
+
+[7] Kafka 2.0 Documentation. https://kafka.apache.org/20/documentation.html#consumerconfigs
+
+[8] Kafka No Longer Requires ZooKeeper. https://towardsdatascience.com/kafka-no-longer-requires-zookeeper-ebfbf3862104?gi=fe640259bf23
+
+[9] Martin Kleppmann. Replication. In *Designing Data-Intensive Applications*, pages 151-197. O'Reilly Media, 2017.
+
+[10] ISR in Apache Kafka. https://www.cloudkarafka.com/blog/what-does-in-sync-in-apache-kafka-really-mean.html.
+
+[11] Global map in a geographic Coordinate Reference System. https://cwiki.apache.org/confluence/display/KAFKA/KIP-39273A+Alow+consumers+to+fetch+from+closest+replica
+
+[12] Hands-free Kafka Replication. https:/www.confluent.io/blog/hands-free-kafka-teplication-a-lesson-in-operational-simplicity/
+
+[13] Kafka high watermark: https://rongxinblog.wordpress.com/2016/07/29/kafka-high-watermark
+
+[14] Kafka mirroring. https://wiki.apache.org/confluence/pages/viewpage.action?pageld=27846330.
+
+[15] Message filtering in RocketMQdtree. https://partners-intlaliyun.com/help/doc-detail/29543.htm
+
+[16] Scheduled messages and delayed messages in Apache RocketMQ. https://partners-intlaliyun.com/help/doc-detail/43349.htm.
+
+[17] Hashed and hierarchical timing wheels. http://www.cs.columbia.edu/~nahum/w6998/papers/sosp87-timing-wheels.pdf.
+
+[18] Advanced Message Queuing Protocol. https://en.wikipedia.org/wiki/Advanced_Message_Queuing_Protocol.
+
+[19] Kafka protocol guide. https://kafka.apache.org/protocol.
+
+[20] HDFS. https://hadoop.apache.org/docs/r1.2.1/hdfs_design.html
